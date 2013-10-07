@@ -185,7 +185,9 @@ def command_line_options():
     parser.add_argument('-gl', '--gramma_flag', help='Flag for  gramma rule word list:',required=False, action='store_true')
     parser.add_argument('-np', '--no_socks_proxy', help='Do not use local Tor socks proxy:',required=False, action='store_true')
     parser.add_argument('-v', '--verbosity', help='How much to display on screen 0 - 10 (default 5):',required=False,default= 5 ,nargs='?')
-    parser.add_argument('-di', '--down_load_image', help='Down load images:',required=False, action='store_true')
+    parser.add_argument('-di', '--down_load_images', help='Down load images:',required=False, action='store_true')
+    parser.add_argument('-dd', '--down_load_docs', help='Down load documents:',required=False, action='store_true')
+    parser.add_argument('-df', '--down_load_files', help='Down load files:',required=False, action='store_true')
     args = parser.parse_args()
     
     options = {}
@@ -203,7 +205,9 @@ def command_line_options():
     options['gramma_flag'] = args.gramma_flag
     options['no_proxy'] = args.no_socks_proxy
     options['verbosity'] = args.verbosity
-    options['download_images'] = args.down_load_image
+    options['download_images'] = args.down_load_images
+    options['download_docs'] = args.down_load_docs
+    options['download_files'] = args.down_load_files
     options['tagger'] = 'sb'
         
     return options
@@ -393,6 +397,8 @@ def tagged_words():
     return tagged_words
 
 def download(url):
+    # code from stack overflow
+    # http://stackoverflow.com/questions/22676/how-do-i-download-a-file-over-http-using-python
     print url
     parse = urlparse(url)
     local = parse[2].split('/')[-1]
@@ -585,10 +591,10 @@ if __name__ == "__main__":
                         if options['download_images'] : download(new_link.url)
                     elif (new_link.type == 'doc') and (new_link.url not in unquie_doc_url):
                         unquie_doc_url.append(new_link.url)
-                        #download(new_link.url)   
+                        if options['download_docs'] : download(new_link.url)   
                     elif (new_link.type == 'file') and (new_link.url not in unquie_file_url):
                         unquie_file_url.append(new_link.url)
-                        #download(new_link.url)
+                        if options['download_files'] : download(new_link.url)
                     
     ### play with totals ###
     
