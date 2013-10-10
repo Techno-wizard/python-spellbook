@@ -412,7 +412,11 @@ def download(url):
         return 
         
     h = u.info()
-    totalSize = int(h["Content-Length"])
+    try:
+        totalSize = int(h["Content-Length"])
+    except:
+        return
+        
     try:
         with open(local): pass
         return
