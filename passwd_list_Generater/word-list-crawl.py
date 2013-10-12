@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
-import sys
+import sys, os
 import signal
 import argparse
+
+from hachoir_core.error import HachoirError
+from hachoir_core.cmd_line import unicodeFilename
+from hachoir_parser import createParser
+from hachoir_core.tools import makePrintable
+from hachoir_metadata import extractMetadata
+from hachoir_core.i18n import getTerminalCharset
 
 import collections
 
@@ -188,6 +195,7 @@ def command_line_options():
     parser.add_argument('-di', '--down_load_images', help='Down load images:',required=False, action='store_true')
     parser.add_argument('-dd', '--down_load_docs', help='Down load documents:',required=False, action='store_true')
     parser.add_argument('-df', '--down_load_files', help='Down load files:',required=False, action='store_true')
+    parser.add_argument('-sd', '--download_directory', help='Directory to save download files in:',required=False, default = '.' ,nargs = '?')
     args = parser.parse_args()
     
     options = {}
@@ -208,6 +216,7 @@ def command_line_options():
     options['download_images'] = args.down_load_images
     options['download_docs'] = args.down_load_docs
     options['download_files'] = args.down_load_files
+    options['download_directory'] = args.download_directory
     options['tagger'] = 'sb'
         
     return options
@@ -401,30 +410,32 @@ def download(url):
     # http://stackoverflow.com/questions/22676/how-do-i-download-a-file-over-http-using-python
     print url
     parse = urlparse(url)
-    local = parse[2].split('/')[-1]
-    print local
-
+    file_name = parse[2].split('/')[-1]
+    full_path = options['download_directory']+'/'+file_name
+    
+    print file_name
+    
     try:
-        u = urllib2.urlopen(url)
+        open_url = urllib2.urlopen(url)
     except urllib2.HTTPError as e:
         message_to_screen(5, e.code)
         message_to_screen(6, e.read())
         return 
         
-    h = u.info()
+    info_open_url = open_url.info()
     try:
-        totalSize = int(h["Content-Length"])
+        totalSize = int(info_open_url["Content-Length"])
     except:
         return
         
     try:
-        with open(local): pass
+        with open(full_path): pass
         return
     except IOError:
         pass
     
     print "Downloading %s bytes..." % totalSize,
-    fp = open(local, 'wb')
+    fp = open(full_path, 'wb')
 
     blockSize = 8192 #100000 # urllib.urlretrieve uses 8192
     count = 0
@@ -446,7 +457,35 @@ def download(url):
     fp.close()
     if not totalSize:
         print
+    
+    #metadata_media(full_path)
+    return
 
+def metadata_media(filename):
+    
+    filename, realname = unicodeFilename(filename), filename
+    parser = createParser(filename, realname)
+    
+    if not parser:
+        print "Unable to parse file"
+        return
+    
+    try:
+        metadata = extractMetadata(parser)
+    except HachoirError, err:
+        print "Metadata extraction error: %s" % unicode(err)
+        metadata = None
+        
+    if not metadata:
+        print "Unable to extract metadata"
+        return
+
+    text = metadata.exportPlaintext()
+    charset = getTerminalCharset()
+    
+    for line in text:
+        print makePrintable(line, charset)
+        
     return
     
 def gramma_rules_words(rules_list):
@@ -559,6 +598,12 @@ if __name__ == "__main__":
     start_link = crawl_link(options['url'], 'html', 'loc', 0)
     link_list.append(start_link)
     
+    if not os.path.exists(options['download_directory']):
+        try:
+            os.makedirs(options['download_directory'])
+        except IOError:
+            pass
+
     for link in link_list:
         if link.depth > options['depth']:
             link_list.remove(link)
