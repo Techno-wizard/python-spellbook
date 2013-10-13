@@ -38,7 +38,7 @@ class crawl_link(object):
     # follow method
     def follow(self):
         try:
-            # Get a file-like object for the Python Web site's home page.
+            # Get a file-like object for Web site's page.
             req = urllib2.Request(self.url, headers={'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 7.0b;Windows NT 5.1)'})
             url = urllib2.urlopen(req)
             # Read from the object, storing the page's contents in url_content.
@@ -46,7 +46,10 @@ class crawl_link(object):
             url.close()
         except urllib2.HTTPError as e:
             message_to_screen(5, e.code)
-            message_to_screen(6, e.read()) 
+            message_to_screen(6, e.read())
+            url_content = ''
+        except socket.timeout:
+            message_to_screen(5, 'Timed out!') 
             url_content = ''
         return url_content
 
@@ -58,7 +61,11 @@ class url_content(object):
         self.url = link.url
         self.depth = link.depth
         self.raw = raw
-        soup = BeautifulSoup(self.raw)
+        try:
+            soup = BeautifulSoup(self.raw)
+        except:
+            soup = BeautifulSoup()
+        
         # BeautifulSoup processing
         self.soup = soup
         text = soup.get_text()
@@ -196,6 +203,7 @@ def command_line_options():
     parser.add_argument('-dd', '--down_load_docs', help='Down load documents:',required=False, action='store_true')
     parser.add_argument('-df', '--down_load_files', help='Down load files:',required=False, action='store_true')
     parser.add_argument('-sd', '--download_directory', help='Directory to save download files in:',required=False, default = '.' ,nargs = '?')
+    parser.add_argument('-gm', '--get_metadata', help='Get metadata from files:',required=False, action='store_true')
     args = parser.parse_args()
     
     options = {}
@@ -217,6 +225,7 @@ def command_line_options():
     options['download_docs'] = args.down_load_docs
     options['download_files'] = args.down_load_files
     options['download_directory'] = args.download_directory
+    options['get_metadata'] = args.get_metadata
     options['tagger'] = 'sb'
         
     return options
@@ -416,13 +425,20 @@ def download(url):
     print file_name
     
     try:
-        open_url = urllib2.urlopen(url)
+        req = urllib2.Request(url, headers={'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 7.0b;Windows NT 5.1)'})
+        open_url = urllib2.urlopen(req, timeout = 2.5)
     except urllib2.HTTPError as e:
         message_to_screen(5, e.code)
         message_to_screen(6, e.read())
+        return
+    except socket.timeout:
+        message_to_screen(5, 'Timed out!')
         return 
         
     info_open_url = open_url.info()
+    
+    message_to_screen(7, info_open_url)
+    
     try:
         totalSize = int(info_open_url["Content-Length"])
     except:
@@ -434,31 +450,33 @@ def download(url):
     except IOError:
         pass
     
-    print "Downloading %s bytes..." % totalSize,
+    message_to_screen(5, 'Downloading %s bytes...' % totalSize)
     fp = open(full_path, 'wb')
 
     blockSize = 8192 #100000 # urllib.urlretrieve uses 8192
     count = 0
     while True:
-        chunk = u.read(blockSize)
+        chunk = open_url.read(blockSize)
         if not chunk: break
         fp.write(chunk)
         count += 1
         if totalSize > 0:
             percent = int(count * blockSize * 100 / totalSize)
             if percent > 100: percent = 100
-            print "%2d%%" % percent,
+            message_to_screen(5, '%2d%%' % percent)
             if percent < 100:
-                print "\b\b\b\b\b",  # Erase "NN% "
+                message_to_screen(5, '\b\b\b\b\b')
             else:
-                print "Done."
+                message_to_screen(5,'Done.')
 
     fp.flush()
     fp.close()
     if not totalSize:
-        print
-    
-    #metadata_media(full_path)
+        message_to_screen(5, '')
+        
+    if options['get_metadata']:
+        metadata_media(full_path)
+        
     return
 
 def metadata_media(filename):
