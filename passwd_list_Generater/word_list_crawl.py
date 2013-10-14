@@ -417,16 +417,19 @@ def tagged_words():
 def download(url):
     # code from stack overflow
     # http://stackoverflow.com/questions/22676/how-do-i-download-a-file-over-http-using-python
-    print url
+    message_to_screen(5, url)
     parse = urlparse(url)
     file_name = parse[2].split('/')[-1]
     full_path = options['download_directory']+'/'+file_name
     
-    print file_name
+    message_to_screen(5, file_name)
     
     try:
         req = urllib2.Request(url, headers={'User-Agent' : 'Mozilla/4.0 (compatible; MSIE 7.0b;Windows NT 5.1)'})
-        open_url = urllib2.urlopen(req, timeout = 2.5)
+        open_url = urllib2.urlopen(req, timeout = 10)
+    except urllib2.URLError:
+        message_to_screen(5, 'Error')
+        return 
     except urllib2.HTTPError as e:
         message_to_screen(5, e.code)
         message_to_screen(6, e.read())
@@ -463,11 +466,12 @@ def download(url):
         if totalSize > 0:
             percent = int(count * blockSize * 100 / totalSize)
             if percent > 100: percent = 100
-            message_to_screen(5, '%2d%%' % percent)
+            message_to_screen(5, '\r %2d%%' % percent)
+            
             if percent < 100:
-                message_to_screen(5, '\b\b\b\b\b')
+                message_to_screen(5, '\r \b\b\b\b\b')
             else:
-                message_to_screen(5,'Done.')
+                message_to_screen(5,'\r Done.')
 
     fp.flush()
     fp.close()
